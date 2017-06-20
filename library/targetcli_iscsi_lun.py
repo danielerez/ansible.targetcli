@@ -51,12 +51,14 @@ def main():
                         wwn=dict(required=True),
                         backstore_type=dict(required=True),
                         backstore_name=dict(required=True),
+                        attributes=dict(required=False),
                         state=dict(default="present", choices=['present', 'absent']),
                 ),
                 supports_check_mode=True
         )
 
         lun_path = module.params['backstore_type']+"/"+module.params['backstore_name']
+        attributes = module.params['attributes']
         state = module.params['state']
 
         result = {}
@@ -95,7 +97,14 @@ def main():
                     else:
                         rc, out, err = module.run_command("targetcli '/iscsi/%(wwn)s/tpg1/luns create /backstores/%(backstore_type)s/%(backstore_name)s'" % module.params)
                         if rc == 0:
-                            module.exit_json(changed=True)
+                            if attributes:
+                                rc, out, err = module.run_command("targetcli '/backstores/%(backstore_type)s/%(backstore_name)s set attribute %(attributes)s'" % module.params)
+                                if rc == 0:
+                                    module.exit_json(changed=True)
+                                else:
+                                    module.fail_json(msg="Failed to set LUN's attributes")
+                            else:
+                                module.exit_json(changed=True)
                         else:
                             module.fail_json(msg="Failed to create iSCSI LUN object")
 
