@@ -39,12 +39,14 @@ def main():
         module = AnsibleModule(
                 argument_spec = dict(
                         wwn=dict(required=True),
+                        attributes=dict(required=False),
                         state=dict(default="present", choices=['present', 'absent']),
                 ),
                 supports_check_mode=True
         )
 
         wwn = module.params['wwn']
+        attributes = module.params['attributes']
         state = module.params['state']
 
         if find_executable('targetcli') is None:
@@ -73,7 +75,14 @@ def main():
                 else:
                     rc, out, err = module.run_command("targetcli '/iscsi create %(wwn)s'" % module.params)
                     if rc == 0:
-                        module.exit_json(changed=True)
+                        if attributes:
+                            rc, out, err = module.run_command("targetcli '/iscsi/%(wwn)s/tpg1 set attribute %(attributes)s'" % module.params)
+                            if rc == 0:
+                                module.exit_json(changed=True)
+                            else:
+                                module.fail_json(msg="Failed to set TPG's attributes")
+                        else:
+                            module.exit_json(changed=True)
                     else:
                         module.fail_json(msg="Failed to define iSCSI object")
         except OSError as e:
